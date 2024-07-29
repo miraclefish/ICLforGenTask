@@ -148,7 +148,7 @@ class PPLInferencer(BaseInferencer):
                         sub_res = self.__get_ppl(sub_prompt_list).tolist()
                 for k, (res, prompt) in enumerate(zip(sub_res, sub_prompt_list)):
                     sub_ppl_list.append(res)
-                    output_handler.save_prompt_and_ppl(label, prompt[len(ice[idx * self.batch_size + k]):], prompt, res, index)
+                    output_handler.save_prompt_and_ppl(label, prompt[len(ice[idx + k]):], prompt, res, index)
                     index = index + 1
             ppl.append(sub_ppl_list)
 
