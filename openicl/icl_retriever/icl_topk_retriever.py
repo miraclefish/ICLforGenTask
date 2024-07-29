@@ -52,10 +52,11 @@ class TopkRetriever(BaseRetriever):
                  test_split: Optional[str] = 'test',
                  tokenizer_name: Optional[str] = 'gpt2-xl',
                  batch_size: Optional[int] = 1,
+                 ascending_order: Optional[bool] = False,
                  accelerator: Optional[Accelerator] = None
                  ) -> None:
         super().__init__(dataset_reader, ice_separator, ice_eos_token, prompt_eos_token, ice_num, index_split,
-                         test_split, accelerator)
+                         test_split, ascending_order, accelerator)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.batch_size = batch_size
         self.tokenizer_name = tokenizer_name
@@ -76,6 +77,7 @@ class TopkRetriever(BaseRetriever):
         self.model.eval()
 
         self.index = self.create_index()
+        self.rtr_score_list = []
 
     def create_index(self):
         self.select_datalist = self.dataset_reader.generate_input_field_corpus(self.index_ds)
@@ -92,19 +94,26 @@ class TopkRetriever(BaseRetriever):
     def knn_search(self, ice_num):
         res_list = self.forward(self.dataloader, process_bar=True, information="Embedding test set...")
         rtr_idx_list = [[] for _ in range(len(res_list))]
-        logger.info("Retrieving data for test set...")
+        rtr_score_list = [[] for _ in range(len(res_list))]
+        if self.is_main_process:
+            logger.info("Retrieving data for test set...")
         for entry in tqdm.tqdm(res_list, disable=not self.is_main_process):
             idx = entry['metadata']['id']
             embed = np.expand_dims(entry['embed'], axis=0)
-            near_ids = self.index.search(embed, ice_num)[1][0].tolist()
+            search_result = self.index.search(embed, ice_num)
+            score_list = search_result[0][0].tolist()
+            near_ids = search_result[1][0].tolist()
             rtr_idx_list[idx] = near_ids
+            rtr_score_list[idx] = score_list
+        self.rtr_score_list = rtr_score_list
         return rtr_idx_list
 
     def forward(self, dataloader, process_bar=False, information=''):
         res_list = []
         _dataloader = copy.deepcopy(dataloader)
         if process_bar:
-            logger.info(information)
+            if self.is_main_process:
+                logger.info(information)
             _dataloader = tqdm.tqdm(_dataloader, disable=not self.is_main_process)
         for _, entry in enumerate(_dataloader):
             with torch.no_grad():
