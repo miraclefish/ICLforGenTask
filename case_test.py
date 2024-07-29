@@ -4,6 +4,7 @@ from openicl import TopkRetriever
 from openicl import PromptTemplate, PPLInferencer
 from openicl import AccEvaluator
 from accelerate import Accelerator
+from utils import TemplateBank
 import argparse
 import os
 
@@ -48,32 +49,9 @@ def main(args):
      dataset = load_from_disk(dataset_path)
      data = DatasetReader(dataset, input_columns=['sentence'], output_column='label',
                           ds_size=64 if args.debug else None)
-     # template = PromptTemplate(template={
-     #                                         1: '</E>Positive Movie Review: </text>',
-     #                                         0: '</E>Negative Movie Review: </text>' 
-     #                                    },
-     #                          column_token_map={'sentence' : '</text>'},
-     #                          ice_token='</E>'
-     #           )
      
-     # template = PromptTemplate(template={
-     #                                         1: '</E></text>\nIt was great .\n\n',
-     #                                         0: '</E></text>\nIt was terrible .\n\n' 
-     #                                    },
-     #                          column_token_map={'sentence' : '</text>'},
-     #                          ice_token='</E>'
-     #           )
-     
-     template = PromptTemplate(template={
-                                             0: '</E></text>\nIt was terrible .\n\n',
-                                             1: '</E></text>\nIt was bad .\n\n',
-                                             2: '</E></text>\nIt was okay .\n\n',
-                                             3: '</E></text>\nIt was good .\n\n',
-                                             4: '</E></text>\nIt was great .\n\n'
-                                        },
-                              column_token_map={'sentence' : '</text>'},
-                              ice_token='</E>'
-               )
+     TemBank = TemplateBank()
+     template = TemBank.get_template(args.dataset_name)
 
      retriever = TopkRetriever(data, ice_num=args.ice_num, index_split='train', test_split='test',
                                batch_size=args.batch_size, tokenizer_name=sentence_transformers_name,
