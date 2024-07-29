@@ -255,6 +255,14 @@ class PPLInferencerOutputHandler:
             if str(idx) not in self.results_dict.keys():
                 self.results_dict[str(idx)] = {}
             self.results_dict[str(idx)]['in-context examples'] = example
+    
+    def save_label(self, labels):
+        for idx, label in enumerate(labels):
+            if self.accelerator is not None:
+                idx = idx * self.accelerator.num_processes + self.accelerator.process_index
+            if str(idx) not in self.results_dict.keys():
+                self.results_dict[str(idx)] = {}
+            self.results_dict[str(idx)]['label'] = label
 
     def save_predictions(self, predictions):
         for idx, prediction in enumerate(predictions):
@@ -274,3 +282,10 @@ class PPLInferencerOutputHandler:
         self.results_dict[str(idx)]['label: ' + str(label)]['testing input'] = input
         self.results_dict[str(idx)]['label: ' + str(label)]['prompt'] = prompt
         self.results_dict[str(idx)]['label: ' + str(label)]['PPL'] = ppl
+
+    def save_ice_scores_and_idx(self, ice_idx_list, ice_score_list):
+        for idx, (ice_idx, ice_score) in enumerate(zip(ice_idx_list, ice_score_list)):
+            if self.accelerator is not None:
+                idx = idx * self.accelerator.num_processes + self.accelerator.process_index
+            self.results_dict[str(idx)]['ice_idx'] = ice_idx
+            self.results_dict[str(idx)]['ice_score'] = ice_score
