@@ -11,8 +11,11 @@ test.sh
 
 # Output files
 icl_inference_output/
+icl_inference_output_new/
+icl_inference_output_ascending/
 batchscript-*
 output/
+*.log
 
 # Packages
 dist/
