@@ -34,6 +34,7 @@ class BaseRetriever:
                  ice_num: Optional[int] = 1,
                  index_split: Optional[str] = 'train',
                  test_split: Optional[str] = 'test',
+                 ascending_order: Optional[bool] = False,
                  accelerator: Optional[Accelerator] = None
                  ) -> None:
         self.dataset_reader = DatasetReader._check_dataset_reader(dataset_reader)
@@ -44,6 +45,7 @@ class BaseRetriever:
         self.index_split = index_split
         self.test_split = test_split
         self.accelerator = accelerator
+        self.ascending_order = ascending_order
         self.is_main_process = True if self.accelerator is None or self.accelerator.is_main_process else False
         if isinstance(self.dataset_reader.dataset, Dataset):
             self.index_ds = self.dataset_reader.dataset
@@ -87,6 +89,8 @@ class BaseRetriever:
     def generate_ice(self, idx_list: List[int], ice_template: Optional[PromptTemplate] = None) -> str:
         generated_ice_list = []
         dr = self.dataset_reader
+        if self.ascending_order:
+            idx_list = idx_list[::-1]
         for idx in idx_list:
             if ice_template is None:
                 generated_ice_list.append(' '.join(list(map(str,
