@@ -80,6 +80,8 @@ class PPLInferencer(BaseInferencer):
         for idx in range(len(ice_idx_list)):
             ice.append(retriever.generate_ice(ice_idx_list[idx], ice_template=ice_template))
         output_handler.save_ice(ice)
+        output_handler.save_ice_scores_and_idx(ice_idx_list, retriever.rtr_score_list)
+        output_handler.save_label(retriever.test_ds[retriever.dataset_reader.output_column])
 
         # 5. Calculating PPL for prompts in each label's class
         for label in labels:
@@ -124,7 +126,11 @@ class PPLInferencer(BaseInferencer):
                 normalizing_str_len = self.get_input_token_num(normalizing_str)
 
             # 5.2 Get PPL
-            logger.info(f"Calculating PPL for prompts labeled '{label}'")
+            if self.accelerator is not None:
+                if self.accelerator.is_main_process:
+                    logger.info(f"Calculating PPL for prompts labeled '{label}'")
+            else:
+                logger.info(f"Calculating PPL for prompts labeled '{label}'")
             for idx in trange(0, len(prompt_list), self.batch_size, disable=not self.is_main_process):
                 sub_prompt_list = prompt_list[idx:idx + self.batch_size]
                 if normalizing_str is not None:
@@ -140,9 +146,9 @@ class PPLInferencer(BaseInferencer):
                         sub_res = res1 - res2
                     else:
                         sub_res = self.__get_ppl(sub_prompt_list).tolist()
-                for res, prompt in zip(sub_res, sub_prompt_list):
+                for k, (res, prompt) in enumerate(zip(sub_res, sub_prompt_list)):
                     sub_ppl_list.append(res)
-                    output_handler.save_prompt_and_ppl(label, prompt[len(ice[idx]):], prompt, res, index)
+                    output_handler.save_prompt_and_ppl(label, prompt[len(ice[idx * self.batch_size + k]):], prompt, res, index)
                     index = index + 1
             ppl.append(sub_ppl_list)
 
@@ -159,7 +165,14 @@ class PPLInferencer(BaseInferencer):
         output_handler.merge_to_main_process(output_json_filepath, output_json_filename)
         output_handler.write_to_json(output_json_filepath, output_json_filename)
 
-        return [sample['prediction'] for sample in output_handler.results_dict.values()]
+        if self.accelerator is not None:
+            if self.accelerator.is_main_process:
+                for pid in range(self.accelerator.num_processes):
+                    os.remove(f'{output_json_filepath}/process{pid}_{output_json_filename}.json')
+                    # print(f"{output_json_filepath}/process{pid}_{output_json_filename}.json has been removed")
+
+        prediction = [sample['prediction'] for sample in output_handler.results_dict.values()]
+        return prediction
 
     def __get_ppl(self, input_texts: List[str], mask_length=None):
         if self.call_api:
