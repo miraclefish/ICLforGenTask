@@ -1,5 +1,5 @@
 """Prompt Template"""
-
+import random
 from typing import Dict, Optional, Union, Hashable
 from .utils.check_type import _check_type_list, _check_dict
 
@@ -76,7 +76,11 @@ class PromptTemplate:
             if self.selected_column_map is not None and key == self.selected_column_name:
                 tp = tp.replace(token, str(self.selected_column_map[label]))
             else:
-                tp = tp.replace(token, str(entry[key]))
+                if isinstance(entry[key], list):
+                    tt = str(entry[key][random.randint(1, len(entry[key])) - 1])
+                else:
+                    tt = str(entry[key])
+                tp = tp.replace(token, tt)
         return tp
 
     def generate_label_prompt_item(self, entry: Dict, ice: str, label: Hashable, remain_sep: Optional[bool] = False) -> str:
