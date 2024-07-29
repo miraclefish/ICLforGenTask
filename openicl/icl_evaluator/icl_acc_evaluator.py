@@ -1,7 +1,7 @@
 """Acc Evaluator"""
 from openicl.icl_evaluator import BaseEvaluator
 from typing import List
-import evaluate
+import numpy as np
 
 
 class AccEvaluator(BaseEvaluator):
@@ -17,5 +17,5 @@ class AccEvaluator(BaseEvaluator):
                 mapping_to_int_dict[str(pred)] = len(mapping_to_int_dict)
         golds = [mapping_to_int_dict[str(gold)] for gold in references]
         preds = [mapping_to_int_dict[str(pred)] for pred in predictions]
-        metric = evaluate.load("accuracy")
-        return metric.compute(references=golds, predictions=preds)
+        right_count = np.sum(np.array(golds) == np.array(preds))
+        return 1.0 * right_count / len(golds)
